@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mediguard dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eceff2;--panel:#fff;--ink:#14202b;--muted:#586878;--line:#d3dae1;--accent:#0f6e8c;--ok:#1f7a4d;--bad:#b3261e;--run:#a86a00;
+--film:#0c1820;--film-ink:#cfe3ec;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans)}
+header{padding:20px 28px 14px;display:flex;flex-wrap:wrap;gap:14px 28px;align-items:end;justify-content:space-between}
+h1{margin:0;font-size:26px;font-weight:600;letter-spacing:-.01em}
+header p{margin:2px 0 0;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:3px 12px;font-size:13px;display:flex;gap:7px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.ok .dot{background:var(--ok)}.bad .dot{background:var(--bad)}.run .dot{background:var(--run);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.run .dot{animation:none}}
+.bar{padding:0 28px 14px;display:flex;gap:10px;flex-wrap:wrap}
+button{font:inherit;font-size:14px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 14px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover:not(:disabled){background:#0b5870;color:#fff}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,520px);gap:20px;padding:0 28px 28px;align-items:start}
+@media (max-width:980px){main{grid-template-columns:1fr}.console{position:static!important}}
+h2{font-size:16px;margin:18px 0 8px;font-weight:600}
+h2:first-child{margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.card.done{border-left-color:var(--ok)}.card.failed{border-left-color:var(--bad)}.card.running{border-left-color:var(--run)}
+.card.sel{box-shadow:0 0 0 2px var(--accent)}
+.card h3{margin:0;font-size:15px;font-weight:600}
+.file{font:12px var(--mono);color:var(--muted)}
+.card p{margin:0;color:var(--muted);font-size:13px;flex:1}
+.row{display:flex;gap:8px;align-items:center}
+.row .st{margin-left:auto;font-size:12px;color:var(--muted)}
+.done .st{color:var(--ok)}.failed .st{color:var(--bad)}.running .st{color:var(--run)}
+.console{position:sticky;top:16px;background:var(--film);color:var(--film-ink);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;height:min(78vh,720px)}
+.console header{padding:10px 14px;border-bottom:1px solid #223540;align-items:center}
+.console header b{font-weight:500;font-size:14px}
+.console header span{font-size:12px;color:#8fb0c0}
+.console button{background:transparent;color:var(--film-ink);border-color:#35505e;padding:3px 10px;font-size:13px}
+pre{margin:0;padding:12px 14px;flex:1;overflow:auto;font:12.5px/1.5 var(--mono);white-space:pre-wrap;word-break:break-word}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.gallery figure{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px}
+.gallery img{width:100%;display:block;border-radius:3px}
+.gallery figcaption{font:12px var(--mono);color:var(--muted);margin-top:6px}
+.empty{color:var(--muted);font-size:14px;background:var(--panel);border:1px dashed var(--line);border-radius:6px;padding:14px}
+#msg{color:var(--bad);font-size:14px;padding:0 28px 8px;min-height:0}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Mediguard</h1>
+    <p>Test how well pneumonia X-ray models hold up when images get noisy, blurry or badly exposed.</p>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+<div class="bar">
+  <button class="primary" id="all">Run all tests</button>
+  <button id="stop" disabled>Stop</button>
+  <button id="refresh">Refresh results</button>
+</div>
+<div id="msg" role="alert"></div>
+<main>
+  <section>
+    <div id="groups"></div>
+    <h2>Result graphs</h2>
+    <div id="gallery" class="gallery"></div>
+  </section>
+  <aside class="console" aria-label="Script output">
+    <header>
+      <div><b id="ctitle">Output</b><br><span id="cstate">Run a script to see its output here.</span></div>
+      <button id="clear">Clear</button>
+    </header>
+    <pre id="out" tabindex="0"></pre>
+  </aside>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const LABEL = {done:"Finished", failed:"Failed", running:"Running", stopped:"Stopped"};
+let S = null, active = null, queue = [], timer = null;
+
+const api = async (p, o) => (await fetch(p, o)).json();
+const say = t => { $("#msg").textContent = t || ""; };
+
+function chip(label, state){ return `<span class="chip ${state}"><i class="dot"></i>${label}</span>`; }
+
+function render(){
+  const st = S.status;
+  $("#chips").innerHTML =
+    chip(st.dataset ? "Dataset found" : "Dataset missing", st.dataset ? "ok" : "bad") +
+    chip(st.cnn ? "SmallCNN model found" : "SmallCNN model missing", st.cnn ? "ok" : "bad") +
+    chip(st.resnet ? "ResNet18 model found" : "ResNet18 model missing", st.resnet ? "ok" : "bad") +
+    chip(st.cuda === null ? "Checking GPU" : st.cuda ? "GPU ready" : "Running on CPU", st.cuda ? "ok" : "");
+  const busy = !!S.running;
+  const groups = [...new Set(S.scripts.map(s => s.group))];
+  $("#groups").innerHTML = groups.map(g => `<h2>${g}</h2><div class="grid">` +
+    S.scripts.filter(s => s.group === g).map(s => {
+      const js = s.job ? s.job.status : "";
+      const label = !s.exists ? "File missing" : s.runnable ? (LABEL[js] || "Ready") : "Library";
+      return `<div class="card ${js} ${active && active.sid === s.id ? "sel" : ""}">
+        <h3>${s.title}</h3><div class="file">${s.file}${s.args.length ? " " + s.args.join(" ") : ""}</div>
+        <p>${s.desc}</p>
+        <div class="row">
+          ${s.runnable ? `<button data-run="${s.id}" ${busy || !s.exists ? "disabled" : ""}>Run</button>` : ""}
+          ${s.job ? `<button data-log="${s.id}">Output</button>` : ""}
+          <button data-src="${s.id}" ${s.exists ? "" : "disabled"}>Code</button>
+          <span class="st">${label}</span>
+        </div></div>`;
+    }).join("") + `</div>`).join("");
+  $("#all").disabled = busy || queue.length > 0;
+  $("#stop").disabled = !busy && !queue.length;
+}
+
+async function start(sid){
+  say("");
+  const r = await api("/api/run/" + sid, {method:"POST"});
+  if (r.error){ say(r.error); return false; }
+  active = {sid, job:r.job, off:0};
+  const s = S.scripts.find(x => x.id === sid);
+  $("#ctitle").textContent = s.file + (s.args.length ? " " + s.args.join(" ") : "");
+  $("#out").textContent = "";
+  return true;
+}
+
+async function showLog(sid){
+  const s = S.scripts.find(x => x.id === sid);
+  if (!s.job) return;
+  active = {sid, job:s.job.id, off:0};
+  $("#ctitle").textContent = s.file + (s.args.length ? " " + s.args.join(" ") : "");
+  $("#out").textContent = "";
+}
+
+async function showSource(sid){
+  const r = await api("/api/source/" + sid);
+  active = null;
+  $("#ctitle").textContent = r.file + " (source)";
+  $("#cstate").textContent = "Read-only view of the script.";
+  $("#out").textContent = r.text;
+}
+
+async function tick(){
+  S = await api("/api/state");
+  if (active){
+    const r = await api(`/api/job/${active.job}?since=${active.off}`);
+    const pre = $("#out"), stick = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 40;
+    if (r.lines.length){ pre.textContent += r.lines.join("\n") + "\n"; active.off = r.total; }
+    if (stick) pre.scrollTop = pre.scrollHeight;
+    $("#cstate").textContent = r.status === "running" ? "Running…" :
+      r.status === "done" ? "Finished without errors." :
+      r.status === "stopped" ? "Stopped." : `Failed (exit code ${r.code}). Read the last lines above.`;
+    if (r.status === "failed" || r.status === "stopped"){
+      if (queue.length) say("Run all stopped because " + (S.scripts.find(x => x.id === active.sid).title) + " did not finish.");
+      queue = [];
+    }
+  }
+  if (!S.running && queue.length){
+    if (!(await start(queue.shift()))) queue = [];
+  }
+  render();
+  if (!S.running && !queue.length && timer){ clearInterval(timer); timer = null; loadResults(); }
+}
+
+function poll(){ if (!timer) timer = setInterval(tick, 800); tick(); }
+
+async function loadResults(){
+  const r = await api("/api/results");
+  $("#gallery").innerHTML = r.length ? r.map(i =>
+    `<figure><a href="/results/${i.path}" target="_blank" rel="noopener"><img src="/results/${i.path}?t=${i.t}" alt="${i.path}"></a><figcaption>${i.path}</figcaption></figure>`).join("")
+    : `<div class="empty">No graphs yet. Run “Draw graphs” after the tests to fill this in.</div>`;
+}
+
+document.addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.run){
+    const s = S.scripts.find(x => x.id === b.dataset.run);
+    if (s.group === "Train models" && !confirm(`${s.title} will overwrite your existing trained model file and can take a long time. Continue?`)) return;
+    if (await start(s.id)) poll();
+  }
+  if (b.dataset.log) showLog(b.dataset.log).then(poll);
+  if (b.dataset.src) showSource(b.dataset.src);
+});
+$("#all").onclick = () => { queue = [...S.pipeline]; say(""); poll(); };
+$("#stop").onclick = async () => { queue = []; if (S.running) await api("/api/stop/" + S.running, {method:"POST"}); tick(); };
+$("#clear").onclick = () => { $("#out").textContent = ""; };
+$("#refresh").onclick = loadResults;
+
+tick().then(() => { if (S.running){ const s = S.scripts.find(x => x.job && x.job.id === S.running); showLog(s.id).then(poll); } });
+loadResults();
+</script>
+</body>
+</html>
